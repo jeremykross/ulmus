@@ -18,6 +18,7 @@
                 :source-paths ["src"]
                 :compiler {:output-to "target/js/ulmus.js"
                            :optimizations "advanced"}}]}
-  :codox {:language :clojurescript
+  :codox {:output-path "docs"
+          :language :clojurescript
           :metadata {:doc/format :markdown}})
 
