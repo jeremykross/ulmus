@@ -1,8 +1,11 @@
-# ulmus
+# Ulmus
 
 Ulmus is a small library atop core.async designed to facilitate a functional-reactive style of programming.  It's inspired by Elm and RX, primarily.  Some of the API apes Elm although it makes no attempt to be complete or exclusive in doing so.  
 
 Ulmus is basically a thin layer atop core.async.  It's designed to be easy to grok, and easily extensible.  
+
+## Installation
+Add `[ulmus "0.1.0-SNAPSHOT"]` to your project.clj dependencies.
 
 ## Primer
 
@@ -11,23 +14,26 @@ The basic building block of Ulmus is termed a signal.  Behind the scenes it's re
 ## Example
 It's a bit contrived but lets create an example signal that returns true if the mouse is on the right half of the browser window and false otherwise.
 
-```
+```clojure
 (def right-side?-$ 
   (ulmus.core/map
     (fn [[window-width mouse-x]] (> mouse-x (/ window-width 2)))
     (ulmus.core/latest (ulmus.window/width) (ulmus.mouse/x))))
 ```
 
-Now right-side?-$ represents the correct value whether the window is resized or the mouse moves.
+Now `right-side?-$` represents the correct value whether the window is resized or the mouse moves.
 
 If you want to do something further with that value (like maybe, set the state on a React compontent) you can use elmalike.core/subscribe-next! to have a callback called with the current value.
 
 Alternatively you can derefernece (`@right-side?-$`) to get the value from anywhere else.
 
+## Docs
+
+[Api Specification](http://jeremykross.github.io/ulmus)
 
 ## License
 
-Copyright © 2108 Jeremy Kross
+Copyright 2018 Jeremy Kross
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
