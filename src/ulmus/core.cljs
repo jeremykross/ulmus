@@ -43,6 +43,7 @@
   (subscribe-error! [this f-error] (subscribe! this identity f-error identity))
   (subscribe-completed! [this f-completed] (subscribe! this identity identity f-completed))
   (subscribe! [this f-next f-completed f-error]
+    (when @this (f-next @this))
     (let [subscriber-ch (async/tap mult (async/chan))]
       (async-mac/go-loop 
         [x (async/<! subscriber-ch)]
@@ -203,16 +204,19 @@
   take the value of a vector containing the latest value received
   on each of the constituent signals."
   [& sigs]
-  (let [sigs (c/map (fn [s] (or s (signal))) sigs)
-        with-index (fn [[index s]] (map (fn [v] [index v]) s))
-        index-sigs (apply 
-                     merge (c/map with-index 
-                                  (map-indexed (fn [i s] [i s]) sigs)))]
-    (foldp
-      (fn [state [index v]]
-        (assoc state index v))
-      (mapv deref sigs)
-      index-sigs)))
+  (if (zero? (c/count sigs))
+    (signal-of [])
+    (binding [+buffer-size+ (* (c/count sigs) 10)]
+      (let [sigs (c/map (fn [s] (or s (signal))) sigs)
+            with-index (fn [[index s]] (map (fn [v] [index v]) s))
+            index-sigs (apply 
+                         merge (c/map with-index 
+                                      (map-indexed (fn [i s] [i s]) sigs)))]
+        (foldp
+          (fn [state [index v]]
+            (assoc state index v))
+          (mapv deref sigs)
+          index-sigs)))))
 
 (defn latest-keyed
   "Similar to [[latest]].  Takes an object of keywords to signals
@@ -240,7 +244,7 @@
         (-> slice
           (conj v)
           (subvec 1))))
-    [] s-$))
+    [@s-$] s-$))
 
 (defn count
   "Takes a signal and returns a signal with the count of elements received thereon."
