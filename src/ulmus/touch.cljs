@@ -2,6 +2,7 @@
   (:require 
     [cljs.core :as core]
     [ulmus.core :as signal]
+    [ulmus.event :as evt]
     [cljs.core.async :as async])
   (:require-macros
     [cljs.core.async.macros :as async-mac]))
@@ -12,15 +13,15 @@
 
 (defn initialize!
   []
-  (def touchmove-events (signal/from-event! (.-body js/document) "touchmove"))
-  (def touchstart-events (signal/from-event! (.-body js/document) "touchstart"))
-  (def touchend-events (signal/from-event! (.-body js/document) "touchend")))
+  (def touchmove-events (evt/from-event! (.-body js/document) "touchmove"))
+  (def touchstart-events (evt/from-event! (.-body js/document) "touchstart"))
+  (def touchend-events (evt/from-event! (.-body js/document) "touchend")))
 
 (defn teardown!
   []
-  (signal/teardown-signal-from-event! touchmove-events)
-  (signal/teardown-signal-from-event! touchstart-events)
-  (signal/teardown-signal-from-event! touchend-events))
+  (evt/teardown-signal-from-event! touchmove-events)
+  (evt/teardown-signal-from-event! touchstart-events)
+  (evt/teardown-signal-from-event! touchend-events))
 
 (defn- touches-from-native-event
   [e]

@@ -3,6 +3,7 @@
   (:require 
     [cljs.core :as core]
     [ulmus.core :as signal]
+    [ulmus.event :as evt]
     [cljs.core.async :as async])
   (:require-macros
     [cljs.core.async.macros :as async-mac]))
@@ -12,12 +13,12 @@
 (defn initialize!
   "Must be called before funcs in ulmus.window can be used."
   []
-  (def resize-events (signal/from-event! js/window "resize")))
+  (def resize-events (evt/from-event! js/window "resize")))
 
 (defn teardown!
   "Called to cleanup event handlers attached in [[ulmus.window/initialize!]]."
   []
-  (signal/teardown-signal-from-event! resize-events))
+  (evt/teardown-signal-from-event! resize-events))
 
 (defn dimensions
   "Returns a signal of a vector containing the current dimension of the window in px."

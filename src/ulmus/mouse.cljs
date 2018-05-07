@@ -3,6 +3,7 @@
   (:require 
     [cljs.core :as core]
     [ulmus.core :as signal]
+    [ulmus.event :as evt]
     [cljs.core.async :as async])
   (:require-macros
     [cljs.core.async.macros :as async-mac]))
@@ -14,16 +15,16 @@
 (defn initialize!
   "Must be called before the functions is ulmus.mouse can be used."
   []
-  (def position-events (signal/from-event! (.-body js/document) "mousemove"))
-  (def mousedown-events (signal/from-event! (.-body js/document) "mousedown"))
-  (def mouseup-events (signal/from-event! (.-body js/document) "mouseup")))
+  (def position-events (evt/from-event! (.-body js/document) "mousemove"))
+  (def mousedown-events (evt/from-event! (.-body js/document) "mousedown"))
+  (def mouseup-events (evt/from-event! (.-body js/document) "mouseup")))
 
 (defn teardown!
   "Cleans up the event handlers attached in [[ulmus.mouse/initialize!]]."
   []
-  (signal/teardown-signal-from-event! position-events)
-  (signal/teardown-signal-from-event! mousedown-events)
-  (signal/teardown-signal-from-event! mouseup-events))
+  (evt/teardown-signal-from-event! position-events)
+  (evt/teardown-signal-from-event! mousedown-events)
+  (evt/teardown-signal-from-event! mouseup-events))
 
 (defn position
   "Returns a signal of the two element vector indicating the current page-relative

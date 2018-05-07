@@ -2,21 +2,27 @@
   "Core signal creation and mapipulation faculties."
   (:refer-clojure :exclude [merge map filter partition count clone reduce])
   (:require 
-    [cljs.core :as c]
-    [cljs.core.async :as async])
-  (:require-macros
-    [cljs.core.async.macros :as async-mac]))
+    #?@(:cljs [[cljs.core :as c]
+               [cljs.core.async :as async]]
+        :clj [[clojure.core :as c]
+              [clojure.core.async :as async
+               :include-macros true
+               :refer [go go-loop]]]))
+  #?(:cljs
+      (:require-macros
+        [cljs.core.async.macros :refer [go go-loop]])))
 
 (def ^:dynamic +buffer-size+ 1)
 
-(defprotocol Observer
+; TODO: break direct ties to core.async.
+(defprotocol Stream
   "The functions here can be called on a signal to implicitly alter it's state.  These functions generally won't be called directly."
   (next! [this x])
   (error! [this err])
   (completed! [this]))
 
 (defprotocol Observable
-  "These functions here can be used to attach listeners to events occuring on signals.  These generally won't be called directly."
+  "These functions here can be used to attach listeners to events occuring on signals."
   (subscribe-next! [this f-next])
   (subscribe-error! [this f-error])
   (subscribe-completed! [this f-comleted])
@@ -25,10 +31,11 @@
 
 (defrecord Signal 
   [ch mult latest completed?]
-  Observer
+  Stream
   (next! [this x]
     (reset! latest x)
-    (async-mac/go (async/>! ch x))
+    (go 
+      (async/>! ch x))
     this)
   (completed! [this]
     (reset! completed? true)
@@ -44,21 +51,25 @@
   (subscribe-completed! [this f-completed] (subscribe! this identity identity f-completed))
   (subscribe! [this f-next f-completed f-error]
     (when @this (f-next @this))
-    (let [subscriber-ch (async/tap mult (async/chan))]
-      (async-mac/go-loop 
+
+    ; Vals already delivered?
+    (let [subscriber-ch (async/tap mult (async/chan (async/buffer (.n (.buf ch)))))]
+      (go-loop 
         [x (async/<! subscriber-ch)]
         (if (or (nil? x) (= :unsubscribe x))
           (f-completed)
           (do
-            (f-next x) 
+            (f-next x)
             (recur (async/<! subscriber-ch)))))
       subscriber-ch))
   (unsubscribe! [this subscription]
     (async/untap mult subscription)
-    (async-mac/go 
+    (go 
       (async/>! subscription :unsubscribe)))
-  IDeref
-  (-deref [this] @latest))
+  #?@(:cljs [cljs.core/IDeref
+             (-deref [this] @latest)]
+       :clj [clojure.lang.IDeref
+             (deref [this] @latest)]))
 
 (defn signal
   "Generates a new Signal optionally taking a backing channel.  If
@@ -68,7 +79,7 @@
    (signal (async/chan (async/sliding-buffer +buffer-size+))))
   ([ch]
    (let [new-sig-$ (Signal. ch 
-                          (async/mult ch) 
+                          (async/mult ch)
                           (atom nil) 
                           (atom false))]
      (subscribe-next! new-sig-$
@@ -96,25 +107,6 @@
   "Returns true if the signal is completed."
   [s-$]
   (deref (:completed? s-$)))
-
-(defn from-event!
-  "Creates an elmalike signal from a DOM event.  Takes a dom element and the event name.
-  Returns a signal that will receive the event object of each occurance of that event."
-  [element event-name]
-  (let [s-$ (signal)
-        handler #(next! s-$ %)]
-    (.addEventListener element event-name handler true)
-    (with-meta s-$ {:event-name event-name
-                    :event-handler handler})))
-
-(defn teardown-signal-from-event!
-  "A helper function to remove the event listener created by a call to [[from-event!]]."
-  [s-$]
-  (let [meta-data (meta s-$)
-        event (:event-name meta-data)
-        handler (:event-handler meta-data)]
-    (when (and event handler)
-      (.removeEventListener (.-body js/document) event handler))))
 
 
 (defn tap-signal
@@ -184,7 +176,7 @@
   [f init s-$]
   (let [out-sig-$ (signal)
         ch (tap-signal s-$)]
-    (async-mac/go-loop [state init]
+    (go-loop [state init]
       (next! out-sig-$ state)
       (let [v (async/<! ch)]
         (if (nil? v)
@@ -277,7 +269,7 @@
         start-ch (tap-signal start-$)
         stop-ch (tap-signal stop-$)]
 
-    (async-mac/go
+    (go
       (loop []
         (async/<! start-ch)
         (async/poll! stop-ch) ;Take anything off the stop-ch, we only want to stop on new vals.
@@ -295,7 +287,7 @@
   ([f1 f2 s-$]
    (let [out-$ (signal (async/chan (async/sliding-buffer +buffer-size+)))
          ch (tap-signal s-$)]
-     (async-mac/go-loop [in-$ nil out-$ out-$ s (if (not (nil? @s-$)) @s-$ (async/<! ch))]
+     (go-loop [in-$ nil out-$ out-$ s (if (not (nil? @s-$)) @s-$ (async/<! ch))]
        (when (not (nil? s))
          (let [cs-$ (f1 s)]
            (cond (and cs-$ in-$)
@@ -307,6 +299,13 @@
                  :else
                  (recur in-$ out-$ (async/<! ch))))))
      out-$)))
+
+(defn from-seq
+  [a-seq] 
+  (let [out-$ (signal (async/chan (async/buffer (c/count a-seq))))]
+    (doseq [i a-seq]
+      (next! out-$ i))
+    out-$))
          
 (defn- select-between
   [selector-sig other-sigs]
@@ -315,30 +314,6 @@
       (other-sigs a))
     selector-sig))
 
-(defn- signalize
-  ([x]
-   (foldp (fn [known incoming]
-            (let [incoming-ids (keys incoming)
-                  new-known (c/merge known
-                                   (zipmap incoming-ids
-                                           (c/map (fn [k] (or (known k) (signal))) incoming-ids)))]
-
-              (doseq [[k v] new-known]
-                (next! v (incoming k)))
-
-              new-known))
-          {} x))
-   ([x id-fn]
-    (foldp (fn [known incoming]
-             (let [incoming-ids (map id-fn incoming)
-                   new-known (c/merge known
-                                    (zipmap incoming-ids
-                                            (c/map (fn [k] (or (known k) (signal))) incoming-ids)))]
-
-               (doseq [[k v] new-known]
-                 (next! v (some #(= k (id-fn %)) incoming)))
-
-               new-known))
-           {} x)))
-
-
+(defn testing
+  []
+  (subscribe-next! (from-seq [1 2 3]) #(println "val: " %)))

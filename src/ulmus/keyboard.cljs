@@ -3,6 +3,7 @@
   (:require 
     [cljs.core :as core]
     [ulmus.core :as signal]
+    [ulmus.event :as evt]
     [cljs.core.async :as async])
   (:require-macros
     [cljs.core.async.macros :as async-mac]))
@@ -24,18 +25,18 @@
   (def keydown-events 
     (signal/map 
       (partial from-dom-event :down)
-      (signal/from-event! (.-body js/document) "keydown")))
+      (evt/from-event! (.-body js/document) "keydown")))
   (def keyup-events 
     (signal/map
       (partial from-dom-event :up)
-      (signal/from-event! (.-body js/document) "keyup")))
+      (evt/from-event! (.-body js/document) "keyup")))
   (def key-events (signal/merge keydown-events keyup-events)))
 
 (defn teardown!
   "Called after [[initialize!]] to clean up associated event handlers."
   []
-  (signal/teardown-signal-from-event! keydown-events)
-  (signal/teardown-signal-from-event! keyup-events))
+  (evt/teardown-signal-from-event! keydown-events)
+  (evt/teardown-signal-from-event! keyup-events))
 
 (defn is-down?
   "Takes a keycode and returns a signal indicating whether or not the key is pressed."
