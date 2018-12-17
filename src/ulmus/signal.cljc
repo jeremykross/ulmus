@@ -50,7 +50,7 @@
 
 (defn merge
   [& signals]
-  (make-signal @(first signals)
+  (make-signal (if (signal? (first signals)) @(first signals) nil)
                >!
                signals))
   
@@ -134,7 +134,7 @@
   (>! s-$ v)
   s-$)
 
-(defn flatmap
+(defn pickmap
   [proc s-$]
   (let [map-$ (map proc s-$)
         out-$ (signal)]
@@ -145,12 +145,12 @@
           (splice! out-$ v-$))))
     out-$))
 
-(defn zipmap
+(defn pickzip
   [proc s-$]
-  (flatmap #(apply zip (c/map proc %)) s-$))
+  (pickmap #(apply zip (c/map proc %)) s-$))
 
-(defn mergemap
+(defn pickmerge
   [proc s-$]
-  (flatmap #(apply merge (c/map proc %)) s-$))
+  (pickmap #(apply merge (c/map proc %)) s-$))
 
 
