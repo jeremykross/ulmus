@@ -118,8 +118,11 @@
 (defn splice!
   [to-$ from-$]
 
-  (when (:splice/signal (meta to-$))
-    (let [m (meta from-$)]
+  (js/console.log "Splice")
+  (js/console.log (meta to-$))
+
+  (when-let [m (meta to-$)]
+    (when (:ulmus/splice-signal m)
       (unsubscribe! (:ulmus/splice-signal m)
                     (:ulmus/splice-subscription m))))
 
@@ -137,13 +140,14 @@
 (defn pickmap
   [proc s-$]
   (let [map-$ (map proc s-$)
-        out-$ (signal)]
+        out-$ (atom (signal))]
     (subscribe!
       map-$
       (fn [v-$]
         (when (signal? v-$)
-          (splice! out-$ v-$))))
-    out-$))
+          (reset! out-$
+                  (splice! @out-$ v-$)))))
+    @out-$))
 
 (defn pickzip
   [proc s-$]
