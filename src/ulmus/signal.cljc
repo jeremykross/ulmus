@@ -118,9 +118,6 @@
 (defn splice!
   [to-$ from-$]
 
-  (js/console.log "Splice")
-  (js/console.log (meta to-$))
-
   (when-let [m (meta to-$)]
     (when (:ulmus/splice-signal m)
       (unsubscribe! (:ulmus/splice-signal m)
@@ -156,5 +153,37 @@
 (defn pickmerge
   [proc s-$]
   (pickmap #(apply merge (c/map proc %)) s-$))
+
+#?(:cljs
+   (defn now [] (js/Date.now))
+   :default 
+   (defn now [] (throw "implement me!")))
+
+(defn throttle
+  [s-$ ms]
+  (let [last-put (atom (now))
+        out-$ (signal)]
+    (subscribe! s-$
+                (fn [v]
+                  (when (> (- @last-put (now)) ms)
+                    (>! out-$ v)
+                    (reset! last-put (now)))))
+    out-$))
+
+#?(:cljs
+   (defn debounce
+     [ms s-$]
+     (let [timeout (atom nil)
+           out-$ (signal)]
+       (subscribe! s-$
+                   (fn [v]
+                     (js/console.log v)
+                     (when @timeout (js/clearTimeout @timeout))
+                     (reset! timeout
+                             (js/setTimeout (fn []
+                                              (>! out-$ v)
+                                              (reset! timeout nil)) ms))))
+       out-$)))
+
 
 
