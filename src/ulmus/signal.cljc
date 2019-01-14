@@ -1,5 +1,5 @@
 (ns ulmus.signal
-  (:refer-clojure :exclude [clone distinct merge map filter reduce zipmap])
+  (:refer-clojure :exclude [clone distinct merge map filter partition reduce zipmap])
   (:require
     [clojure.core :as c]
     [clojure.spec.alpha :as spec]))
@@ -161,6 +161,17 @@
   [proc s-$]
   (pickmap #(apply merge (c/map proc %)) s-$))
 
+(defn partition
+  [n s-$]
+  (let [buffer (atom [])]
+    (make-signal nil
+                 (fn [sig-$ v]
+                   (swap! buffer conj v)
+                   (when (= (count @buffer) n)
+                     (>! sig-$ @buffer)
+                     (reset! buffer [])))
+                 [s-$])))
+
 #?(:cljs
    (defn now [] (js/Date.now))
    :default 
@@ -191,6 +202,4 @@
                                               (>! out-$ v)
                                               (reset! timeout nil)) ms))))
        out-$)))
-
-
 
