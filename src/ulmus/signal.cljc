@@ -95,6 +95,13 @@
   [value-$ sample-$]
   (map (fn [_] @value-$) sample-$))
 
+(defn sample-when
+  [value-$ sample-$]
+  (make-signal (if @sample-$ @value-$)
+              (fn [sig-$ v] (when @sample-$ (>! sig-$ v)))
+              [value-$]))
+
+
 (defn distinct
   [s-$]
   (make-signal @s-$
