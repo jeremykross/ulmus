@@ -13,4 +13,10 @@
                              [(.-clientX e)
                               (.-clientY e)]) move-events-$))
 
+(def mouseup-$ (ulmus.dom/listen! "mouseup" (.-body js/document)))
 
+(def mousedown-$ (ulmus.dom/listen! "mousedown" (.-body js/document)))
+
+(def down?-$ (ulmus/merge
+               (ulmus/map (constantly true) mousedown-$)
+               (ulmus/map (constantly false) mouseup-$)))
