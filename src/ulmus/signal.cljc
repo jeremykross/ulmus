@@ -154,12 +154,14 @@
     @out-$))
 
 (defn pickzip
-  [proc s-$]
-  (pickmap #(apply zip (c/map proc %)) s-$))
+  ([s-$] (pickzip identity s-$))
+  ([proc s-$]
+   (pickmap #(apply zip (c/map proc %)) s-$)))
 
 (defn pickmerge
-  [proc s-$]
-  (pickmap #(apply merge (c/map proc %)) s-$))
+  ([s-$] (pickmerge identity s-$))
+  ([proc s-$]
+   (pickmap #(apply merge (c/map proc %)) s-$)))
 
 (defn partition
   [n s-$]

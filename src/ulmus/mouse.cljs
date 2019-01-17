@@ -9,9 +9,9 @@
       (fn [e] (aget (.-touches e) 0))
       (ulmus.dom/listen! "touchmove" (.-body js/document)))))
 
-(def position-$ (ulmus/map (fn [e]
-                             [(.-clientX e)
-                              (.-clientY e)]) move-events-$))
+(defn position [e] [(.-clientX e) (.-clientY e)])
+
+(def position-$ (ulmus/map position move-events-$))
 
 (def mouseup-$ (ulmus.dom/listen! "mouseup" (.-body js/document)))
 
