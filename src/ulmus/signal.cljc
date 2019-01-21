@@ -163,6 +163,20 @@
   ([proc s-$]
    (pickmap #(apply merge (c/map proc %)) s-$)))
 
+(defn choose
+  [selection-$ options]
+  (let [out-$ (atom (signal))]
+    (when-let [selected-option (options @selection-$)]
+      (reset! out-$
+              (splice! @out-$ selected-option)))
+    (subscribe!
+      selection-$
+      (fn [selection]
+        (when-let [selected-option (options selection)]
+          (reset! out-$
+                  (splice! @out-$ selected-option)))))
+    @out-$))
+
 (defn partition
   [n s-$]
   (let [buffer (atom [])]
