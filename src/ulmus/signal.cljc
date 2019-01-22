@@ -1,5 +1,5 @@
 (ns ulmus.signal
-  (:refer-clojure :exclude [clone distinct merge map filter partition reduce zipmap])
+  (:refer-clojure :exclude [clone delay distinct merge map filter partition reduce zipmap])
   (:require
     [clojure.core :as c]
     [clojure.spec.alpha :as spec]))
@@ -188,6 +188,19 @@
                      (reset! buffer [])))
                  [s-$])))
 
+(defn slice
+  [n s-$]
+  (let [buffer (atom 
+                 (concat
+                   (repeat (dec n) nil)
+                   [@s-$]))]
+    (make-signal @buffer
+                 (fn [sig-$ v]
+                   (swap! buffer (fn [buf] (-> (drop 1 buf)
+                                               (concat [v]))))
+                   (>! sig-$ @buffer))
+                 [s-$])))
+
 #?(:cljs
    (defn now [] (js/Date.now))
    :default 
@@ -219,3 +232,10 @@
                                               (reset! timeout nil)) ms))))
        out-$)))
 
+#?(:cljs
+   (defn delay
+     [ms s-$]
+     (make-signal @s-$
+                  (fn [sig-$ v]
+                    (js/setTimeout #(>! sig-$ v) ms))
+                  [s-$])))
