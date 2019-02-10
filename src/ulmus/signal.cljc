@@ -1,6 +1,7 @@
 (ns ulmus.signal
-  (:refer-clojure :exclude [clone delay distinct merge map filter partition reduce zipmap])
+  (:refer-clojure :exclude [clone delay distinct merge map filter flatten partition reduce zipmap])
   (:require
+    clojure.set
     [clojure.core :as c]
     [clojure.spec.alpha :as spec]))
 
@@ -200,6 +201,41 @@
                                                (concat [v]))))
                    (>! sig-$ @buffer))
                  [s-$])))
+
+(defn changed-keys
+  [s-$]
+  (map
+    (fn [[prev curr]]
+      (let [curr-keys (into #{} (keys curr))
+            prev-keys (into #{} (keys prev))
+            gained (clojure.set/difference curr-keys prev-keys)
+            lost (clojure.set/difference prev-keys curr-keys)]
+        [(select-keys curr gained)
+         (select-keys prev lost)]))
+    (slice 2 s-$)))
+
+(defn set-added
+  [s-$]
+  (distinct 
+    (map (fn [[prev current]]
+           (clojure.set/difference current prev))
+         (slice 2 s-$))))
+
+(defn set-removed
+  [s-$]
+  (distinct
+    (map (fn [[prev current]]
+           (clojure.set/difference prev current))
+         (slice 2 s-$))))
+
+(defn flatten
+  [s-$]
+  (make-signal nil
+               (fn [sig-$ v]
+                 (if (seqable? v)
+                   (doseq [element v] (>! sig-$ element))
+                   (>! sig-$ v)))
+               [s-$]))
 
 #?(:cljs
    (defn now [] (js/Date.now))
