@@ -81,11 +81,11 @@
 
 (defn map
   [proc & signals]
-  (let [current-value (fn [] 
-                        (when (some #(not (nil? (deref %))) signals)
+  (let [current-value (fn [force?] 
+                        (when (or force? (some #(not (nil? (deref %))) signals))
                           (apply proc (mapv deref signals))))]
-    (make-signal (current-value)
-                 (fn [s-$ _] (>! s-$ (current-value)))
+    (make-signal (current-value false)
+                 (fn [s-$ _] (>! s-$ (current-value true)))
                  signals)))
 
 (defn clone
