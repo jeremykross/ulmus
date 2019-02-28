@@ -112,19 +112,25 @@
                [s-$]))
 
 (defn subscribe!
+  ([s-$ update-proc] (subscribe! s-$ update-proc identity))
+  ([s-$ update-proc closed-proc]
+   (when @s-$ (update-proc @s-$))
+   (let [subscription (keyword (gensym))]
+     (add-watch (:value s-$)
+                subscription
+                (fn [_ _ _ new-value]
+                  (update-proc new-value)))
+     (add-watch (:closed? s-$)
+                subscription
+                (fn [] (closed-proc)))
+     (swap! (:subscriptions s-$)
+            conj subscription)
+     subscription)))
+
+(defn subscribe-closed!
   [s-$ proc]
-  (when @s-$ (proc @s-$))
-  (let [subscription (keyword (gensym))]
-    (add-watch (:value s-$)
-               subscription
-               (fn [_ _ _ new-value]
-                 (proc new-value)))
-    (add-watch (:closed? s-$)
-               subscription
-               (fn [] (proc :ulmus/closed)))
-    (swap! (:subscriptions s-$)
-           conj subscription)
-    subscription))
+  (subscribe! s-$ identity proc))
+
 
 (defn unsubscribe!
   [s-$ subscription]
@@ -287,7 +293,7 @@
       (when (and
               (:transitive? options)
               (empty? @(:outputs input-$)))
-        (close! input-$)))
+        (apply close! input-$ opts)))
 
     (doseq [output-$ @(:outputs s-$)]
       (swap! (:inputs output-$)
