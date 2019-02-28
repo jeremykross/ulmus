@@ -6,11 +6,11 @@
     [clojure.spec.alpha :as spec]))
 
 #?(:cljs 
-   (defrecord Signal [value proc inputs outputs]
+   (defrecord Signal [value proc inputs outputs subscriptions closed?]
      IDeref
      (-deref [_] @value))
    :default
-   (defrecord Signal [value proc inputs outputs]
+   (defrecord Signal [value proc inputs outputs subscriptions closed?]
      clojure.lang.IDeref
      (deref [_] @value)))
 
@@ -18,19 +18,21 @@
    (extend-protocol IPrintWithWriter
      Signal
      (-pr-writer [sig writer _] (write-all writer 
-       (str "<signal (current-value: " @(:value sig) " inputs: " (count (:inputs sig)) " outputs: " (count @(:outputs sig)) ") >"))))
+       (str "<signal (current-value: " @(:value sig) " inputs: " (count @(:inputs sig)) " outputs: " (count @(:outputs sig)) ") >"))))
    :default 
    (defmethod print-method Signal [sig ^java.io.Writer writer]
-     (.write writer (str "<signal (current-value: " @(:value sig) " inputs: " (count (:inputs sig)) " outputs: " (count @(:outputs sig)) ") >"))))
+     (.write writer (str "<signal (current-value: " @(:value sig) " inputs: " (count @(:inputs sig)) " outputs: " (count @(:outputs sig)) ") >"))))
   
 (defn make-signal
   [init proc inputs]
-  (let [s-$ (->Signal (atom init) proc inputs (atom []))]
+  (let [s-$ (->Signal (atom init) proc (atom inputs) (atom []) (atom []) (atom false))]
     (doseq [input-signal inputs]
       (swap! (:outputs input-signal) conj s-$))
     s-$))
 
 (defn signal? [x] (instance? Signal x))
+
+(defn closed? [s-$] @(:closed? s-$))
 
 (defn signal-propogate!
   [signal-$]
@@ -117,11 +119,24 @@
                subscription
                (fn [_ _ _ new-value]
                  (proc new-value)))
+    (add-watch (:closed? s-$)
+               subscription
+               (fn [] (proc :ulmus/closed)))
+    (swap! (:subscriptions s-$)
+           conj subscription)
     subscription))
 
 (defn unsubscribe!
   [s-$ subscription]
-  (remove-watch (:value s-$) subscription))
+  (remove-watch (:value s-$) subscription)
+  (remove-watch (:closed? s-$) subscription)
+  (swap! (:subscriptions s-$)
+         #(remove #{subscription} %)))
+
+(defn unsubscribe-all!
+  [s-$]
+  (doseq [sub @(:subscriptions s-$)]
+    (unsubscribe! s-$ sub)))
 
 (defn splice!
   [to-$ from-$]
@@ -214,20 +229,6 @@
          (select-keys prev lost)]))
     (slice 2 s-$)))
 
-(defn set-added
-  [s-$]
-  (distinct 
-    (map (fn [[prev current]]
-           (clojure.set/difference current prev))
-         (slice 2 s-$))))
-
-(defn set-removed
-  [s-$]
-  (distinct
-    (map (fn [[prev current]]
-           (clojure.set/difference prev current))
-         (slice 2 s-$))))
-
 (defn flatten
   [s-$]
   (make-signal nil
@@ -275,3 +276,22 @@
                   (fn [sig-$ v]
                     (js/setTimeout #(>! sig-$ v) ms))
                   [s-$])))
+
+(defn close!
+  [s-$ & opts]
+  (let [options (apply hash-map opts)]
+
+    (doseq [input-$ @(:inputs s-$)]
+      (swap! (:outputs input-$)
+             #(remove #{s-$} %))
+      (when (and
+              (:transitive? options)
+              (empty? @(:outputs input-$)))
+        (close! input-$)))
+
+    (doseq [output-$ @(:outputs s-$)]
+      (swap! (:inputs output-$)
+             #(remove #{s-$} %)))
+
+    (reset! (:closed? s-$) true)))
+
