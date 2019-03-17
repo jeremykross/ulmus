@@ -111,6 +111,13 @@
                (fn [sig-$ v] (when (not= @sig-$ v) (>! sig-$ v)))
                [s-$]))
 
+(defn unsubscribe!
+  [s-$ subscription]
+  (remove-watch (:value s-$) subscription)
+  (remove-watch (:closed? s-$) subscription)
+  (swap! (:subscriptions s-$)
+         #(remove #{subscription} %)))
+
 (defn subscribe!
   ([s-$ update-proc] (subscribe! s-$ update-proc identity))
   ([s-$ update-proc closed-proc]
@@ -122,7 +129,9 @@
                   (update-proc new-value)))
      (add-watch (:closed? s-$)
                 subscription
-                (fn [] (closed-proc)))
+                (fn [subscription]
+                  (unsubscribe! s-$ subscription)
+                  (closed-proc)))
      (swap! (:subscriptions s-$)
             conj subscription)
      subscription)))
@@ -130,14 +139,6 @@
 (defn subscribe-closed!
   [s-$ proc]
   (subscribe! s-$ identity proc))
-
-
-(defn unsubscribe!
-  [s-$ subscription]
-  (remove-watch (:value s-$) subscription)
-  (remove-watch (:closed? s-$) subscription)
-  (swap! (:subscriptions s-$)
-         #(remove #{subscription} %)))
 
 (defn unsubscribe-all!
   [s-$]
