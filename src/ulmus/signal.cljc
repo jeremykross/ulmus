@@ -1,5 +1,5 @@
 (ns ulmus.signal
-  (:refer-clojure :exclude [clone delay distinct merge map filter flatten partition reduce zipmap])
+  (:refer-clojure :exclude [clone delay distinct merge map filter flatten partition reduce remove zipmap])
   (:require
     clojure.set
     [clojure.core :as c]
@@ -81,6 +81,10 @@
                    (>! sig-$ v)))
                [s-$]))
 
+(defn remove
+  [pred s-$]
+  (filter (comp not pred) s-$))
+
 (defn map
   [proc & signals]
   (let [current-value (fn [force?] 
@@ -116,7 +120,7 @@
   (remove-watch (:value s-$) subscription)
   (remove-watch (:closed? s-$) subscription)
   (swap! (:subscriptions s-$)
-         #(remove #{subscription} %)))
+         #(c/remove #{subscription} %)))
 
 (defn subscribe!
   ([s-$ update-proc] (subscribe! s-$ update-proc identity))
@@ -290,7 +294,7 @@
 
     (doseq [input-$ @(:inputs s-$)]
       (swap! (:outputs input-$)
-             #(remove #{s-$} %))
+             #(c/remove #{s-$} %))
       (when (and
               (:transitive? options)
               (empty? @(:outputs input-$)))
@@ -298,7 +302,7 @@
 
     (doseq [output-$ @(:outputs s-$)]
       (swap! (:inputs output-$)
-             #(remove #{s-$} %)))
+             #(c/remove #{s-$} %)))
 
     (reset! (:closed? s-$) true)))
 
