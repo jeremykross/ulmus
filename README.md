@@ -22,6 +22,15 @@ The basic building block of Ulmus is termed a signal. A signal is, conceptually,
     window/width-$)))
 ```
 
+## Status
+
+Ulmus is fairly well-tread at this point, but still beta quality.  It shouldn't be relied on yet for anything mission critical.
+
+## Todo
+
+* Api documentation
+* Spec
+
 ## License
 
 Copyright 2018 Jeremy Kross
