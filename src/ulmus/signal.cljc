@@ -153,8 +153,8 @@
       (unsubscribe! (:ulmus/splice-signal m)
                     (:ulmus/splice-subscription m))))
 
-  (when @from-$
-    (>! to-$ @from-$))
+  ;(when @from-$
+  ;  (>! to-$ @from-$))
 
   (with-meta to-$ {:ulmus/splice-signal from-$
                    :ulmus/splice-subscription (subscribe! from-$ #(>! to-$ %))}))
