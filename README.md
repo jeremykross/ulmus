@@ -22,6 +22,8 @@ The basic building block of Ulmus is termed a signal. A signal is, conceptually,
     window/width-$)))
 ```
 
+The above (and various other examples) can be found at [https://jeremykross.github.io/recurrent-examples/#/left-or-right](https://jeremykross.github.io/recurrent-examples/#/left-or-right).
+
 ## Status
 
 Ulmus is fairly well-tread at this point, but still beta quality.  It shouldn't be relied on yet for anything mission critical.
