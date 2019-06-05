@@ -121,7 +121,10 @@
 (defn subscribe!
   ([s-$ update-proc] (subscribe! s-$ update-proc identity))
   ([s-$ update-proc closed-proc]
-   (when @s-$ (update-proc @s-$))
+   (when (and
+           @s-$
+           (not (= (:replay? (meta s-$)) false)))
+     (update-proc @s-$))
    (let [subscription (keyword (gensym))]
      (add-watch (:value s-$)
                 subscription
@@ -165,26 +168,30 @@
   s-$)
 
 (defn pickmap
-  [proc s-$]
-  (let [map-$ (map proc s-$)
-        out-$ (atom (signal))]
-    (subscribe!
-      map-$
-      (fn [v-$]
-        (when (signal? v-$)
-          (reset! out-$
-                  (splice! @out-$ v-$)))))
-    @out-$))
+  ([proc s-$] (pickmap proc s-$ {}))
+  ([proc s-$ metadata]
+   (let [map-$ (map proc s-$)
+         out-$ (atom (signal))]
+
+     (subscribe!
+       map-$
+       (fn [v-$]
+         (when (signal? v-$)
+           (reset! out-$
+                   (splice! @out-$ (with-meta v-$ metadata))))))
+     @out-$)))
 
 (defn pickzip
   ([s-$] (pickzip identity s-$))
-  ([proc s-$]
-   (pickmap #(apply zip (c/map proc %)) s-$)))
+  ([proc s-$] (pickzip proc s-$ {}))
+  ([proc s-$ metadata]
+   (pickmap #(apply zip (c/map proc %)) s-$ metadata)))
 
 (defn pickmerge
   ([s-$] (pickmerge identity s-$))
-  ([proc s-$]
-   (pickmap #(apply merge (c/map proc %)) s-$)))
+  ([proc s-$] (pickmerge proc s-$ {}))
+  ([proc s-$ metadata]
+   (pickmap #(apply merge (c/map proc %)) s-$ metadata)))
 
 (defn choose
   [selection-$ options]
