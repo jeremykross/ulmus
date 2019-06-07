@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>ulmus</groupId>
   <artifactId>ulmus</artifactId>
-  <version>0.2.1</version>
+  <version>0.2.2</version>
   <name>ulmus</name>
   <dependencies>
     <dependency>
@@ -31,4 +31,9 @@
       <url>https://repo.clojars.org/</url>
     </repository>
   </repositories>
+  <scm>
+    <connection>scm:git:git://github.com/jeremykross/ulmus.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/jeremykross/ulmus.git</developerConnection>
+    <url>https://github.com/jeremykross/ulmus</url>
+  </scm> 
 </project>

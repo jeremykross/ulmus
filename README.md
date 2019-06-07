@@ -6,7 +6,7 @@ Ulmus is a library for doing Functional Reactive Programming (FRP) in Clojure an
 
 Ulmus is a small library designed to facilitate a functional-reactive style of programming. It's inspired by Elm and RX, primarily. Some of the API apes Elm although it makes no attempt to be complete or exclusive in doing so.
 
-The basic building block of Ulmus is termed a signal. A signal is, conceptually, a value that can change over time. Signals can be composed using an array of standard functional operators (defined in ulmus.core) or by applying transducers. These operators all return new signals that can be further composed. When the value on any of the signals update, the entire computation graph is re-run, keeping everything up to date. The current value of a signal can be dereferenced just like an atom.
+The basic building block of Ulmus is termed a signal. A signal is, conceptually, a value that can change over time. Signals can be composed using an array of standard functional operators (defined in ulmus.signal) or by applying transducers. These operators all return new signals that can be further composed. When the value on any of the signals update, the entire computation graph is re-run, keeping everything up to date. The current value of a signal can be dereferenced just like an atom.
 
 ### Usage
 
