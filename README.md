@@ -2,12 +2,6 @@
 
 Ulmus is a library for doing Functional Reactive Programming (FRP) in Clojure and Clojurescript.
 
-### Introduction
-
-Ulmus is a small library designed to facilitate a functional-reactive style of programming. It's inspired by Elm and RX, primarily. Some of the API apes Elm although it makes no attempt to be complete or exclusive in doing so.
-
-The basic building block of Ulmus is termed a signal. A signal is, conceptually, a value that can change over time. Signals can be composed using an array of standard functional operators (defined in ulmus.signal) or by applying transducers. These operators all return new signals that can be further composed. When the value on any of the signals update, the entire computation graph is re-run, keeping everything up to date. The current value of a signal can be dereferenced just like an atom.
-
 ### Usage
 
 `[ulmus "0.2.3"]` in `project.clj`
@@ -16,22 +10,52 @@ or
 
 `{:deps {ulmus {:mvn/version "0.2.3"}}}` in `deps.edn`
 
+### Introduction
 
-### Example
+Ulmus is a library designed to facilitate a functional-reactive style of programming. It's primarily inspired by Elm and RX. Some of the API apes Elm although it makes no attempt to be complete or exclusive in doing so.
+
+Signals are the basic building blocks of ulmus.  Conceptually, a signal is a datatype which holds a particular value.  Signals can be composed with standard functional tooling (eg. map, filter, reduce), producing new, dependent, signals.  Changing a signal's value causes all of it's dependent signals to update as well.
+
+So for the sake of illustration, we might define a signal representing the current position of the mouse.
 
 ```clojure
-(def left-right-$
-  (ulmus/map
-    (fn [[mouse-x win-width]]
-      (if (> mouse-x (/ win-width 2))
-        :right
-        :left))
-  (ulmus/zip
-    mouse-x-$
-    window/width-$)))
+(defn mouse-pos
+  []
+  (let [sig-$ (ulmus/signal)]
+    (.addEventListener
+      js/body
+      "mousemove"
+      (fn [e]
+        (ulmus/>! sig-$ [(.-clientX e) (.-clientY e)])))
+    sig-$))
+
+(def position-$ (mouse-pos))
 ```
 
-The above (and various other examples) can be found at [https://jeremykross.github.io/recurrent-examples/#/left-or-right](https://jeremykross.github.io/recurrent-examples/#/left-or-right).
+We now have a signal, `position-$` which represents the current mouse position.  Dereferencing the signal will return it's current value.
+
+```clojure
+@position
+```
+
+might return [640 480] for instance. 
+
+Just like static data, signals can be composed, yielding new signals.  So,
+
+```clojure
+(def mouse-x-$ (ulmus/map first position-$))
+```
+
+Signals can model functionally interactions that would otherwise require slipping into imperative coding.  To better understand how these ideas might be applied to user interface see [Recurrent](https://github.com/jeremykross/recurrent).
+
+### Examples
+
+Various examples can be found at https://jeremykross.github.io/recurrent-examples.
+
+### API Docs
+
+[![cljdoc badge](https://cljdoc.org/badge/ulmus)](https://cljdoc.org/d/ulmus/ulmus/CURRENT)
+
 
 ### Status
 
@@ -39,7 +63,6 @@ Ulmus is fairly well-tread at this point, but still beta quality.  It shouldn't 
 
 ### Todo
 
-* Api documentation
 * Spec
 
 ### License

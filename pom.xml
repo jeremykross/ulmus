@@ -35,5 +35,6 @@
     <connection>scm:git:git://github.com/jeremykross/ulmus.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/jeremykross/ulmus.git</developerConnection>
     <url>https://github.com/jeremykross/ulmus</url>
+    <tag>285ff9e204331c12558b8fa151310f56b3e28c99</tag>
   </scm> 
 </project>
