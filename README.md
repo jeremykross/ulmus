@@ -10,11 +10,11 @@ The basic building block of Ulmus is termed a signal. A signal is, conceptually,
 
 ### Usage
 
-`[ulmus "0.2.2"]` in `project.clj`
+`[ulmus "0.2.3"]` in `project.clj`
 
 or
 
-`{:deps {ulmus {:mvn/version "0.2.2"}}}` in `deps.edn`
+`{:deps {ulmus {:mvn/version "0.2.3"}}}` in `deps.edn`
 
 
 ### Example

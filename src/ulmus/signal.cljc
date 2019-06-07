@@ -250,9 +250,9 @@
     @out-$))
 
 (defn partition
-  [n s-$]
   "Returns a signal of vectors containing every `n` elements
   emitted on `s-$`."
+  [n s-$]
   (let [buffer (atom [])]
     (make-signal nil
                  (fn [sig-$ v]
@@ -263,9 +263,9 @@
                  [s-$])))
 
 (defn slice
-  [n s-$]
   "Returns a signal of vectors containing the last `n` elements
   emitted on `s-$`."
+  [n s-$]
   (let [buffer (atom 
                  (concat
                    (repeat (dec n) nil)
@@ -278,9 +278,9 @@
                  [s-$])))
 
 (defn changed-keys
-  [s-$]
   "Takes a signal containing consecuative maps.  Returns a signal
   of the selected keys `[gained, lost]` between each two emissions."
+  [s-$]
   (map
     (fn [[prev curr]]
       (let [curr-keys (into #{} (keys curr))
@@ -292,9 +292,9 @@
     (slice 2 s-$)))
 
 (defn flatten
-  [s-$]
   "Takes a signal of seqs.  Returns a signal that
   emits each element in the seq individually."
+  [s-$]
   (make-signal nil
                (fn [sig-$ v]
                  (if (seqable? v)
