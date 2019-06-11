@@ -4,11 +4,15 @@ Ulmus is a library for doing Functional Reactive Programming (FRP) in Clojure an
 
 ### Usage
 
-`[ulmus "0.2.3"]` in `project.clj`
+```clojure
+[ulmus "0.2.4"]
+```
 
 or
 
-`{:deps {ulmus {:mvn/version "0.2.3"}}}` in `deps.edn`
+```clojure
+{ulmus {:mvn/version "0.2.4"}}
+```
 
 ### Introduction
 
@@ -35,7 +39,7 @@ So for the sake of illustration, we might define a signal representing the curre
 We now have a signal, `position-$` which represents the current mouse position.  Dereferencing the signal will return it's current value.
 
 ```clojure
-@position
+@position-$
 ```
 
 might return [640 480] for instance. 
