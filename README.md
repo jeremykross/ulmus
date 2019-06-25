@@ -1,4 +1,6 @@
-# Ulmus
+<img src="https://github.com/jeremykross/ulmus/blob/master/resources/ulmus.svg" width="600px" />
+
+---
 
 Ulmus is a library for doing Functional Reactive Programming (FRP) in Clojure and Clojurescript.
 
@@ -64,6 +66,10 @@ Ulmus is fairly well-tread at this point, but still beta quality.  It shouldn't 
 ### Todo
 
 * Spec
+
+### Thanks
+
+The Ulmus logo was created by the eminently talented [@the_stritt](https://twitter.com/the_stritt).
 
 ### License
 
