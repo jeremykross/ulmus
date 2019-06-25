@@ -35,7 +35,7 @@ So for the sake of illustration, we might define a signal representing the curre
 We now have a signal, `position-$` which represents the current mouse position.  Dereferencing the signal will return it's current value.
 
 ```clojure
-@position
+@position-$
 ```
 
 might return [640 480] for instance. 
