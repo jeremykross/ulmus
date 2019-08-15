@@ -1,173 +1,44 @@
 (ns ulmus.signal
-  (:refer-clojure :exclude [map filter])
-  (:require
-    loom.attr
-    [clojure.core :as c]
-    [clojure.set :as set]
-    [loom.graph :as loom]))
+ (:refer-clojure :exclude [map]) 
+ (:require [clojure.core :as c]
+           [ulmus.transaction :as transaction]))
 
-(defonce ^:dynamic graph (atom (loom/digraph)))
-(defonce ^:dynamic originators (atom []))
-
-(defn last-update
-  "Returns the time at which the signal last updated."
-  ([s-$] (last-update @graph s-$))
-  ([g s-$]
-   (first (loom.attr/attr g s-$ :value))))
-
-(defn current-value
-  "Returns the current value of the signal."
-  ([s-$] (current-value @graph s-$))
-  ([g s-$]
-   (second (loom.attr/attr g s-$ :value))))
-
-(defrecord Signal [kind tag proc]
+(defrecord Signal
+  [kind tag proc height value incoming outgoing]
   clojure.lang.IDeref
-  (deref [this] (current-value this)))
+  (deref [this] @(:value this)))
 
-(prefer-method print-method java.util.Map clojure.lang.IDeref)
-
-(defn reset-graph! [] (reset! graph (loom/digraph)))
-
-(defn- now [] (System/currentTimeMillis))
-
-(defn- all-successors
-  [g nodes]
-  (let [successors (partial loom/successors g)]
-    (loop [all #{}
-           curr nodes]
-      (let [direct-successors
-            (apply set/union (c/map successors curr))]
-        (if (empty? direct-successors)
-          all
-          (recur (set/union all direct-successors)
-                 direct-successors))))))
-
-(defn- add-originators
-  [graph originators current-time]
-  (loop [g graph
-         o originators]
-    (if (empty? o)
-      g
-      (let [{:keys [signal value]} (first originators)]
-        (recur
-          (loom.attr/add-attr g signal :value [current-time value])
-          (rest originators))))))
-
-(defn- handle-node
-  [node graph current-time]
-  (let [forward
-        (fn [v]
-          (loom.attr/add-attr graph node :value [current-time v]))
-
-        incoming
-        (loom/predecessors graph node)
-
-        incoming-data
-        (c/map #(loom.attr/attr graph % :value) incoming)
-
-        incoming-times (c/map first incoming-data)
-
-        incoming-values (c/map second incoming-data)
-
-        rewire
-        (fn [sig])]
-
-    (or
-      (condp = (:kind node)
-        :standard
-        ((:proc node) forward incoming-values)
-
-        :switch
-        (if (some? #(= % current-time) incoming-times)
-          ((:proc node) rewire incoming-times))
-
-        false)
-
-      graph)))
-
-(defn- propogate
-  [graph originators current-time]
-  (let [invalid-nodes
-        (sort-by
-          #(loom.attr/attr graph % :height)
-          (all-successors graph (c/map :signal originators)))]
-
-    (loop [g (add-originators graph originators current-time)
-           invalid invalid-nodes]
-      (let [n (first invalid)]
-        (if (not n)
-          g
-          (recur
-            (handle-node n g current-time)
-            (rest invalid)))))))
-
-(defn transact!
-  [thunk]
-  (binding [originators (atom [])]
-    (thunk)
-    (swap! graph propogate @originators (now))))
-
-(defn >!
-  [s-$ v]
-  (swap! originators conj {:signal s-$ :value v}))
-
-(defn close!
-  [s-$])
-
-(defn make-signal
-  [kind tag proc & incoming]
-  (let [heights
-        (c/map #(loom.attr/attr @graph % :height) incoming)
-
-        height
-        (if (empty? heights)
-          0
-          (inc (apply max heights)))
-
-
-        out-$
-        (Signal. kind
-                 tag
-                 proc)]
-
-    (swap! graph
-           (fn [g]
-             (let [incoming-values
-                   (c/map current-value incoming)]
-               (as-> g <>
-                 (loom/add-nodes <> out-$)
-                 (apply loom/add-edges <> (c/map (fn [from] [from out-$]) incoming))
-                 (loom.attr/add-attr <> out-$ :height height)
-                 (loom.attr/add-attr <> out-$ :value (if (every? #(not (nil? %)) incoming-values)
-                                                       [(now) (proc identity incoming-values)]))))))
-
-    out-$))
+(prefer-method print-method clojure.lang.IDeref clojure.lang.IRecord)
+(prefer-method print-method clojure.lang.IDeref clojure.lang.IPersistentMap)
+(prefer-method print-method clojure.lang.IDeref java.util.Map)
 
 (defn signal
-  ([] (signal nil))
-  ([v]
-   (make-signal :input nil (fn [forward _] (forward v)))))
+  [kind tag proc incoming]
+  (let [out-$
+        (Signal. kind tag proc
+                 (if (empty? incoming)
+                   (atom 0)
+                   (atom 
+                     (inc
+                       (apply
+                         max
+                         (c/map (comp deref :height) incoming)))))
+                 (atom nil)
+                 (atom incoming)
+                 (atom []))]
 
-   
-(defn switch
-  [proc s-$]
-  (make-signal :switch nil (fn [forward [v]] (forward v)) s-$))
+  (doseq [i-$ incoming]
+    (swap! (:outgoing i-$)
+           conj out-$))
+
+  (transaction/>! out-$ nil)
+
+  out-$))
+
+(defn constant
+  [x]
+  (signal :standard :constant (fn [f _] (f x)) []))
 
 (defn map
-  [proc s-$]
-  (make-signal :standard
-               :map
-               (fn [forward [v]]
-                 (forward (proc v)))
-               s-$))
-
-(defn filter
-  [pred s-$]
-  (make-signal :standard
-               :filter
-               (fn [forward [v]]
-                 (when (pred v)
-                   (forward v)))
-                 s-$))
- 
+  [proc & sigs]
+  (signal :standard :map (fn [f vs] (f (apply proc vs))) sigs))
