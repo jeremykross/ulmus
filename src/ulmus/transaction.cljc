@@ -49,6 +49,12 @@
   [prev-$ src-$]
   (swap! prevs #(merge-with concat % {src-$ [prev-$]})))
 
+(defn pipe!
+  [src-$ dest-$]
+  (swap! (:outgoing src-$) conj dest-$)
+  (reset! (:incoming dest-$) [src-$])
+  (reset! (:height dest-$) (inc @(:height src-$))))
+
 (defn collect-invalid
   [nodes]
   (loop [invalid #{} generation nodes]

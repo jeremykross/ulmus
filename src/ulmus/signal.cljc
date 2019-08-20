@@ -7,35 +7,38 @@
                            filter
                            partition
                            reduce])
+ #?(:cljs (:require-macros [ulmus.signal :refer [rec]]))
  (:require [clojure.core :as c]
            [ulmus.transaction :as transaction]))
 
-(:clj
-  (defmacro
-    rec
-    [x & body]
-    `(let [~x (forward)
-           s-$# (do ~@body)]
-       (reset! (:height ~x) (inc @(:height s-$#)))
-       (transaction/add-edge! s-$# ~x)
-       ~x)))
+#?(:clj
+   (defmacro
+     rec
+     [x & body]
+     `(let [~x (forward)
+            s-$# (do ~@body)]
+        (transaction/pipe! s-$# ~x)
+        ~x)))
 
-(defrecord Signal
-  [kind tag proc height value incoming outgoing]
-  clojure.lang.IDeref
-  (deref [this] @(:value this)))
+#?(:clj
+   (defrecord Signal
+     [kind tag proc height value incoming outgoing]
+     clojure.lang.IDeref
+     (deref [this] @(:value this)))
+   :cljs
+   (defrecord Signal
+     [kind tag proc height value incoming outgoing]
+     IDeref
+     (-deref [this] @(:value this))))
 
-(prefer-method
-  print-method
-  clojure.lang.IDeref clojure.lang.IRecord)
-
-(prefer-method
-  print-method
-  clojure.lang.IDeref clojure.lang.IPersistentMap)
-
-(prefer-method
-  print-method
-  clojure.lang.IDeref java.util.Map)
+#?(:cljs
+   (extend-protocol IPrintWithWriter
+     Signal
+     (-pr-writer [sig writer _] (write-all writer 
+                                           (str "<signal (current-value: " @(:value sig) " inputs: " (c/count @(:incoming sig)) " outputs: " (c/count @(:outgoing sig)) ") >"))))
+   :clj
+   (defmethod print-method Signal [sig ^java.io.Writer writer]
+     (.write writer (str "<signal (current-value: " @(:value sig) " inputs: " (c/count @(:incoming sig)) " outputs: " (c/count @(:outgoing sig)) ") >"))))
 
 (defn signal
   [kind tag proc incoming]
