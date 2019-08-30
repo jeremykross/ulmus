@@ -95,7 +95,9 @@
 
 (defn map
   [proc & sigs]
-  (signal :standard :map (fn [f vs] (f (apply proc vs))) sigs))
+  (signal :standard :map (fn [f vs]
+                           (println "vs" vs)
+                           (f (apply proc vs))) sigs))
 
 (defn filter
   [pred s-$]

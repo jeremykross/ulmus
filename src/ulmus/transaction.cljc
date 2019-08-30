@@ -3,7 +3,12 @@
 
 (defonce values (atom {}))
 (defonce prevs (atom {}))
+(defonce subscriptions (atom {}))
 
+; probably don't want this
+; just let unswitched nodes get visited
+; won't chnage their values.
+; the logic here will fail in many cases
 (defn- union-with-count
   [a b]
   (let [against-count (fn [x] [x (or (:count (meta x)) 1)])
@@ -55,13 +60,17 @@
   (reset! (:incoming dest-$) [src-$])
   (reset! (:height dest-$) (inc @(:height src-$))))
 
+(defn subscribe!
+  [s-$ proc]
+  (swap! subscriptions #(merge-with concat {s-$ [proc]} %)))
+
 (defn collect-invalid
   [nodes]
   (loop [invalid #{} generation nodes]
     (if (empty? generation)
       invalid
       (recur 
-        (union-with-count invalid (set generation))
+        (set/union invalid (set generation))
         (flatten (map (comp deref :outgoing) generation))))))
 
 (defn recalculate-height!
@@ -73,19 +82,23 @@
   [sigs]
   (doseq [s-$ sigs]
     (recalculate-height! s-$)))
-  
+
+(defn height-sort
+  [nodes]
+  (sort-by (comp deref :height) nodes))
+
+
 (defn visit-standard
   [values n]
   (let [visit (fn [v]
                 (assoc values n v))
-        incoming-vals (map #(get values %) @(:incoming n))
+        incoming-vals (map #(or (get values %) @(:value %)) @(:incoming n))
         new-values ((:proc n) visit incoming-vals)]
     (or new-values values)))
 
 (defn visit-switch!
   [values remaining n]
-  (let [incoming-vals
-        (map #(get values %) @(:incoming n))
+  (let [incoming-vals (map #(or (get values %) @(:value %)) @(:incoming n))
 
         target-$ (first @(:outgoing n))
 
@@ -107,17 +120,8 @@
 
         newly-remaining
         (if ((:proc n) rewire! incoming-vals)
-          (if wired?
-            (let [from-old-target (set (collect-invalid [target-$]))
-                  from-new-target (collect-invalid incoming-vals)]
-              (->> remaining
-                (remove (fn [s-$]
-                          (and 
-                            (some from-old-target s-$)
-                            (= (:count (meta s-$)) 1))))
-                (union-with-count from-new-target)))
-            (let [from-new-target (collect-invalid incoming-vals)]
-              (union-with-count from-new-target remaining)))
+          (let [from-new-target (collect-invalid incoming-vals)]
+            (height-sort (set/union from-new-target remaining)))
           remaining)]
 
     ; recalc heights here?
@@ -128,7 +132,6 @@
   [remaining values]
   (let [n (first remaining)
         others (rest remaining)]
-    (println "Visiting:" (:kind n) "/" (:tag n))
     (condp = (:kind n)
       :standard [others (visit-standard values n)]
       :switch [(visit-switch! values others n) values]
@@ -150,14 +153,11 @@
 
 (defn propogate!
   []
-  (let [invalid (sort-by (comp deref :height)
-                         (collect-invalid (keys @values)))
+  (let [invalid (height-sort (collect-invalid (keys @values)))
         new-values (propogate invalid @values)
         prevs (flatten (remove nil? (map #(get @prevs %) (keys new-values))))]
 
-
     (doseq [[n v] new-values]
-      (println "Setting:" (:kind n) "/" (:tag n) "to" v)
       (reset! (:value n) v))
 
     (reset! values
@@ -165,5 +165,9 @@
               {}
               (map (fn [prev] [prev @(:tag prev)])
                    prevs)))
+
+    (doseq [[n v] new-values]
+      (doseq [subscription (get @subscriptions n)]
+        (subscription v)))
 
     nil))
