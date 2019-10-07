@@ -7,7 +7,7 @@
                             filter
                             parition
                             reduce])
-  #?(:cljs (:require-macros [ulmus.core :refer [def-transacting]]))
+  #?(:cljs (:require-macros [ulmus.core :refer [def-transacting transact]]))
   (:require 
     [clojure.core :as c]
     [ulmus.signal :as signal]

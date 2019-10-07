@@ -58,7 +58,8 @@
   [src-$ dest-$]
   (swap! (:outgoing src-$) conj dest-$)
   (reset! (:incoming dest-$) [src-$])
-  (reset! (:height dest-$) (inc @(:height src-$))))
+  (reset! (:height dest-$) (inc @(:height src-$)))
+  (>! dest-$ @src-$))
 
 (defn subscribe!
   [s-$ proc]
