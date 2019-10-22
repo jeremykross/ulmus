@@ -54,3 +54,5 @@
   pickmap signal/pickmap
   pickzip signal/pickzip
   pickmerge signal/pickmerge)
+
+(def of constant-signal)

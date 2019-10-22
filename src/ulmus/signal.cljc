@@ -31,14 +31,17 @@
      IDeref
      (-deref [this] @(:value this))))
 
+(defn- sig->string
+  [sig]
+  (str "<signal (kind: " (:kind sig) " tag: " (:tag sig) " current-value: " @(:value sig) " inputs: " (c/count @(:incoming sig)) " outputs: " (c/count @(:outgoing sig)) ") >"))
+
 #?(:cljs
    (extend-protocol IPrintWithWriter
      Signal
-     (-pr-writer [sig writer _] (write-all writer 
-                                           (str "<signal (current-value: " @(:value sig) " inputs: " (c/count @(:incoming sig)) " outputs: " (c/count @(:outgoing sig)) ") >"))))
+     (-pr-writer [sig writer _] (write-all writer (sig->string sig))))
    :clj
    (defmethod print-method Signal [sig ^java.io.Writer writer]
-     (.write writer (str "<signal (current-value: " @(:value sig) " inputs: " (c/count @(:incoming sig)) " outputs: " (c/count @(:outgoing sig)) ") >"))))
+     (.write writer (sig->string sig))))
 
 (defn signal
   [kind tag proc incoming]
@@ -96,8 +99,9 @@
 (defn map
   [proc & sigs]
   (signal :standard :map (fn [f vs]
-                           (println "vs" vs)
-                           (f (apply proc vs))) sigs))
+                           (when (some (comp not nil?) vs)
+                             (f (apply proc vs))))
+          sigs))
 
 (defn filter
   [pred s-$]
@@ -122,7 +126,7 @@
    (signal :standard
            :merge
            (fn [f values]
-             (let [present-values (remove nil? values)]
+             (let [present-values (remove nil? (:fresh-vals (meta values)))]
                (if (= 1 (c/count present-values))
                  (f (first present-values))
                  (f (simultaneous values)))))
@@ -142,9 +146,9 @@
   [trigger-$ value-$]
   (signal :standard
           :sample-on
-          (fn [f [t v]]
-            (when t (f (or v @value-$))))
-          [trigger-$ value-$]))
+          (fn [f [t]]
+            (when t (f @value-$)))
+          [trigger-$]))
 
 (defn sample-when
   [trigger-$ value-$]
@@ -159,9 +163,9 @@
   [s-$]
   (signal :standard
           :distinct
-          (fn [f [v pv]]
-            (when (not= v pv) (f v)))
-          [s-$ (prev s-$)]))
+          (fn [f [v]]
+            (when (not= v @s-$) (f v)))
+          [s-$]))
 
 (defn pickmap
   [proc s-$]
@@ -174,3 +178,13 @@
 (defn pickmerge
   [proc s-$]
   (pickmap #(apply merge (c/map proc %)) s-$))
+
+#?(:cljs
+   (defn from-event
+     [elem evt]
+     (let [out-$ (input)
+           handler (fn [e] (transaction/>! out-$ e))]
+       (.addEventListener elem evt handler)
+       (with-meta out-$ {:ulmus/element elem
+                         :ulmus/event evt
+                         :ulmus/handler handler}))))

@@ -94,7 +94,13 @@
   (let [visit (fn [v]
                 (assoc values n v))
         incoming-vals (map #(or (get values %) @(:value %)) @(:incoming n))
-        new-values ((:proc n) visit incoming-vals)]
+        fresh-vals (map #(get values %) @(:incoming n))
+        new-values 
+        (if
+          (or
+            (nil? @(:value n))
+            (some (comp not nil?) fresh-vals))
+          ((:proc n) visit (with-meta incoming-vals {:fresh-vals fresh-vals})))]
     (or new-values values)))
 
 (defn visit-switch!
