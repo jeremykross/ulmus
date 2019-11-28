@@ -77,7 +77,10 @@
 
 (defn constant
   [x]
-  (signal :standard :constant (fn [f _] (f x)) []))
+  (let [out-$
+        (signal :standard :constant (fn [f _] (f x)) [])]
+    (transaction/>! out-$ x)
+    out-$))
 
 (defn forward
   ([] (forward nil))
@@ -116,8 +119,11 @@
   [proc init s-$]
   (rec x (signal :standard
                  :reduce
-                 (fn [f [acc v]]
-                   (f (proc (or acc init) v)))
+                 (fn [f values]
+                   (when (or (second (:fresh-vals (meta values)))
+                             (nil? @x))
+                     (let [[acc v] values]
+                       (f (proc (or acc init) v)))))
                  [(prev x)
                   s-$])))
 

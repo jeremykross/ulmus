@@ -4,6 +4,7 @@
 (defonce values (atom {}))
 (defonce prevs (atom {}))
 (defonce subscriptions (atom {}))
+(defonce propogations (atom 0))
 
 ; probably don't want this
 ; just let unswitched nodes get visited
@@ -160,21 +161,38 @@
 
 (defn propogate!
   []
-  (let [invalid (height-sort (collect-invalid (keys @values)))
-        new-values (propogate invalid @values)
-        prevs (flatten (remove nil? (map #(get @prevs %) (keys new-values))))]
+  (swap! propogations inc)
 
-    (doseq [[n v] new-values]
-      (reset! (:value n) v))
+  (println (str "propogate:" @propogations))
 
-    (reset! values
-            (into
-              {}
-              (map (fn [prev] [prev @(:tag prev)])
-                   prevs)))
+  (when (= @propogations 1)
+    (let [invalid (height-sort (collect-invalid (keys @values)))
+          new-values (propogate invalid @values)
+          prevs (flatten (remove nil? (map #(get @prevs %) (keys new-values))))]
 
-    (doseq [[n v] new-values]
-      (doseq [subscription (get @subscriptions n)]
-        (subscription v)))
+      (doseq [[n v] new-values]
+        (when (> @propogations 1)
+          (println "Setting new value:" n v))
+        (reset! (:value n) v))
 
-    nil))
+      ; Look here!
+      ; need to differentiate the values that initialized
+      ; the current propogation
+      ; from those that changed during the propogation!
+      (reset! values
+              (into
+                {}
+                (map (fn [prev] [prev @(:tag prev)])
+                     prevs)))
+
+      (swap! propogations dec)
+
+      (when (not (zero? @propogations))
+        (reset! propogations 0)
+        (propogate!))
+
+      (doseq [[n v] new-values]
+        (doseq [subscription (get @subscriptions n)]
+          (subscription v)))))
+
+  nil)
